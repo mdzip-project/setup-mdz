@@ -1,0 +1,2 @@
+# Keep LF everywhere: install.sh runs under bash on every runner, including Windows.
+* text=auto eol=lf

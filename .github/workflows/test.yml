@@ -1,0 +1,68 @@
+# Runs the action on every runner OS and architecture it supports, then uses
+# the installed mdz: create, validate and textconv an archive.
+
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest, windows-11-arm]
+        version: ["2.1.0", latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install mdz
+        id: mdz
+        uses: ./
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Check the version and outputs
+        shell: bash
+        run: |
+          echo "version=${{ steps.mdz.outputs.version }} path=${{ steps.mdz.outputs.path }}"
+          test -n "${{ steps.mdz.outputs.path }}"
+          if [ "${{ matrix.version }}" != latest ]; then
+            test "$(mdz --version)" = "${{ matrix.version }}"
+          fi
+          test "$(mdz --version)" = "${{ steps.mdz.outputs.version }}"
+
+      - name: Use it
+        shell: bash
+        run: |
+          mkdir -p doc/images
+          printf '# Hello\n\n![Dot](images/dot.svg)\n' > doc/index.md
+          printf '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>\n' > doc/images/dot.svg
+          mdz create doc hello.mdz --title "Hello"
+          mdz validate hello.mdz
+          mdz textconv hello.mdz | grep -q '^===== index.md =====$'
+
+      - name: Second run uses the installed copy
+        uses: ./
+        with:
+          version: ${{ steps.mdz.outputs.version }}
+
+  bad-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install a version that doesn't exist
+        id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          version: 0.0.0-nope
+      - name: It must have failed
+        run: test "${{ steps.bad.outcome }}" = failure

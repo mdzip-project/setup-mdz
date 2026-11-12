@@ -1,0 +1,36 @@
+name: MDZip
+description: Install the mdz command-line tool for MDZip (.mdz) files, to validate, create, inspect and diff .mdz archives in a workflow.
+author: MDZip project
+branding:
+  icon: package
+  color: gray-dark
+
+inputs:
+  version:
+    description: >
+      mdz version to install, such as "2.1.0", or "latest". Pin a version so a
+      new release can't change your builds unannounced.
+    required: false
+    default: latest
+  token:
+    description: Token for the GitHub API lookup of the release (avoids anonymous rate limits).
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  version:
+    description: The mdz version that was installed, such as "2.1.0".
+    value: ${{ steps.install.outputs.version }}
+  path:
+    description: The folder holding the mdz executable (already added to PATH).
+    value: ${{ steps.install.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - id: install
+      shell: bash
+      env:
+        MDZ_VERSION: ${{ inputs.version }}
+        MDZ_TOKEN: ${{ inputs.token }}
+      run: bash "$GITHUB_ACTION_PATH/install.sh"
